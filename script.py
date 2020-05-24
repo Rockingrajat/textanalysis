@@ -1,91 +1,89 @@
 import requests
-
 # Import BeautifulSoup
 from bs4 import BeautifulSoup
-
 # import re module for REGEXes
 import re
-
-# import pandas
+import os
 import pandas as pd
 
-def parse(hand, file2):
-    
-    IDENTITY=""
-    for line in hand:
-        line=line.strip()
-        if re.findall('^COMPANY CONFORMED NAME:',line):
-            k = line.find(':')
-            comnam=line[k+1:]
-            comnam=comnam.strip()
-            IDENTITY='<HEADER>\nCOMPANY NAME: '+str(comnam)+'\n'                                         
-            break
-        
-    
-    for line in hand:
-        line=line.strip()
-        if re.findall('^CENTRAL INDEX KEY:',line):
-            k = line.find(':')
-            cik=line[k+1:]
-            cik=cik.strip()
-            #print cik
-            IDENTITY=IDENTITY+'CIK: '+str(cik)+'\n'
-            break
-        
-    
-    for line in hand:
-        line=line.strip()
-        if re.findall('^STANDARD INDUSTRIAL CLASSIFICATION:',line):
-            k = line.find(':')
-            sic=line[k+1:]
-            sic=sic.strip()
-            siccode=[]
-            for s in sic: 
-                if s.isdigit():
-                    siccode.append(s)    
-            #print siccode
-            IDENTITY=IDENTITY+'SIC: '+''.join(siccode)+'\n'
-            break
-        
-    
-    for line in hand:
-        line=line.strip()
-        if re.findall('^CONFORMED SUBMISSION TYPE:',line):
-            k = line.find(':')
-            subtype=line[k+1:]
-            subtype=subtype.strip()
-            #print subtype
-            IDENTITY=IDENTITY+'FORM TYPE: '+str(subtype)+'\n'
-            break
-            
-    
-    for line in hand:
-        line=line.strip()
-        if re.findall('^CONFORMED PERIOD OF REPORT:',line):
-            k = line.find(':')
-            cper=line[k+1:]
-            cper=cper.strip()
-            #print cper
-            IDENTITY=IDENTITY+'REPORT PERIOD END DATE: '+str(cper)+'\n'
-            break
-            
-    
-    for line in hand:
-        line=line.strip()
-        if re.findall('^FILED AS OF DATE:',line):
-            k = line.find(':')
-            fdate=line[k+1:]
-            fdate=fdate.strip()
-            #print fdate                                
-            IDENTITY=IDENTITY+'FILE DATE: '+str(fdate)+'\n'+'</HEADER>\n'
-            break
-          
-    with open(file2, 'a') as f:
-        f.write(str(IDENTITY))
-        f.close()
-    
+def parse(file1, file2):
+	with open(file1,'r') as hand: 
+     
+		IDENTITY=""
+		for line in hand:
+		    #print(line)
+		    line=line.strip()
+		    if re.findall('^CONFORMED SUBMISSION TYPE:',line):
+		        k = line.find(':')
+		        subtype=line[k+1:]
+		        subtype=subtype.strip()
+		        #print subtype
+		        IDENTITY=IDENTITY+'FORM TYPE: '+str(subtype)+'\n'
+		        break
+		        
 
-def get_risk_factors(raw_10k):
+		for line in hand:
+			#print(line)
+			line=line.strip()
+			if re.findall('^CONFORMED PERIOD OF REPORT:',line):
+				k = line.find(':')
+				cper=line[k+1:]
+				cper=cper.strip()
+				IDENTITY=IDENTITY+'REPORT PERIOD END DATE: '+str(cper)+'\n'
+				break
+		        
+
+		for line in hand:
+		    line=line.strip()
+		    if re.findall('^FILED AS OF DATE:',line):
+		        k = line.find(':')
+		        fdate=line[k+1:]
+		        fdate=fdate.strip()
+		        #print fdate                                
+		        IDENTITY=IDENTITY+'FILE DATE: '+str(fdate)+'\n'
+		        break
+		for line in hand:
+		    line=line.strip()
+		    if re.findall('^COMPANY CONFORMED NAME:',line):
+		        k = line.find(':')
+		        comnam=line[k+1:]
+		        comnam=comnam.strip()
+		        IDENTITY=IDENTITY+'COMPANY NAME: '+str(comnam)+'\n'                                         
+		        break
+		    
+
+		for line in hand:
+		    line=line.strip()
+		    if re.findall('^CENTRAL INDEX KEY:',line):
+		        k = line.find(':')
+		        cik=line[k+1:]
+		        cik=cik.strip()
+		        #print cik
+		        IDENTITY=IDENTITY+'CIK: '+str(cik)+'\n'
+		        break
+		    
+
+		for line in hand:
+		    line=line.strip()
+		    if re.findall('^STANDARD INDUSTRIAL CLASSIFICATION:',line):
+		        k = line.find(':')
+		        sic=line[k+1:]
+		        sic=sic.strip()
+		        siccode=[]
+		        for s in sic: 
+		            if s.isdigit():
+		                siccode.append(s)    
+		        #print siccode
+		        IDENTITY=IDENTITY+'SIC: '+''.join(siccode)+'\n'
+		        break
+		
+	
+	with open(file2, 'w') as f:
+	    f.write(str(IDENTITY))
+	    f.close()
+
+
+def get_risk_factors(raw_10k, file):
 	doc_start_pattern = re.compile(r'<DOCUMENT>')
 	doc_end_pattern = re.compile(r'</DOCUMENT>')
 	# Regex to find <TYPE> tag prceeding any characters, terminating at new line
@@ -116,8 +114,6 @@ def get_risk_factors(raw_10k):
 	# Use finditer to math the regex
 	matches = regex.finditer(document['10-K'])
 
-	matches = regex.finditer(document['10-K'])
-
 	# Create the dataframe
 	test_df = pd.DataFrame([(x.group(), x.start(), x.end()) for x in matches])
 
@@ -127,7 +123,10 @@ def get_risk_factors(raw_10k):
 	test_df.replace('&#160;',' ',regex=True,inplace=True)
 	test_df.replace('&nbsp;',' ',regex=True,inplace=True)
 	test_df.replace(' ','',regex=True,inplace=True)
-	test_df.replace('\.','',regex=True,inplace=True)
+	test_df.replace('\\.','',regex=True,inplace=True)
+	test_df.replace("\t"," ",regex=True,inplace=True)
+	test_df.replace("\v","",regex=True,inplace=True)
+	test_df.replace('\\s+'," ",regex= True,inplace = True)  
 	test_df.replace('>','',regex=True,inplace=True)
 
 	pos_dat = test_df.sort_values('start', ascending=True).drop_duplicates(subset=['item'], keep='last')
@@ -135,16 +134,40 @@ def get_risk_factors(raw_10k):
 	pos_dat.set_index('item', inplace=True)
 	item_1a_raw = document['10-K'][pos_dat['start'].iloc[0]:pos_dat['start'].iloc[1]]
 	item_1a_content = BeautifulSoup(item_1a_raw, 'lxml')
-	print(item_1a_content.get_text('\n\n').strip())
+	item_1a_content =  item_1a_content.get_text('\n').strip()
+	cleaned_risk_factor = item_1a_content.split('\n')
+	num = re.compile(r'[0-9]')
+	filter_obj = filter(lambda x: x.strip() != "" , cleaned_risk_factor)#cleaned_risk_factor = [cleaned_risk_factor if cleaned_risk_factor not ""]
+	filter_2 = filter(lambda x:not num.match(x),list(filter_obj))
+	filter_2 = [x.strip() for x in filter_2]
 
+	with open(file,'a') as f:
+		f.write("\n".join(list(filter_2)))
+		f.close()
+	
 
 file = pd.read_excel('downloadlist_htm.xlsx')
-for row in file['pretext_iname'].head(1):
+num_files = 1
+for row in file['pretext_iname'].head(num_files):
 			download_link = row.replace('-index.htm','.txt')
+			file_name = download_link.split('/')[-1]
+
+			if not os.path.exists(download_link.split('/')[-1]):
+				os.system('wget '+download_link)
+				print('Downloading file '+file_name)
+			else:
+				print('File '+file_name+" already downloaded")
+			
 			r = requests.get(download_link)
 			raw_10k = r.text
-			parse(raw_10k,'output.txt')
-			get_risk_factors(raw_10k)
+			
+			clean_file_name = file_name.split('.')[0]+"_cleaned.txt"
+			if os.path.exists(clean_file_name):
+				print("Skipping file: "+file_name+", cleaned file "+clean_file_name+" already exists!")
+			else:
+				print('Creating file '+clean_file_name)
+				parse(file_name,clean_file_name)
+				get_risk_factors(raw_10k,clean_file_name)
 			# from requests_html import HTML
 			# html=HTML(html=raw_10k)
 			# print(html.text)
