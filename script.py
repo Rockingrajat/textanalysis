@@ -115,59 +115,72 @@ def get_risk_factors(raw_10k, file):
 	matches = regex.finditer(document['10-K'])
 
 	# Create the dataframe
-	test_df = pd.DataFrame([(x.group(), x.start(), x.end()) for x in matches])
+	try:
+		test_df = pd.DataFrame([(x.group(), x.start(), x.end()) for x in matches])
 
-	test_df.columns = ['item', 'start', 'end']
-	test_df['item'] = test_df.item.str.lower()
+		test_df.columns = ['item', 'start', 'end']
+		test_df['item'] = test_df.item.str.lower()
 
-	test_df.replace('&#160;',' ',regex=True,inplace=True)
-	test_df.replace('&nbsp;',' ',regex=True,inplace=True)
-	test_df.replace(' ','',regex=True,inplace=True)
-	test_df.replace('\\.','',regex=True,inplace=True)
-	test_df.replace("\t"," ",regex=True,inplace=True)
-	test_df.replace("\v","",regex=True,inplace=True)
-	test_df.replace('\\s+'," ",regex= True,inplace = True)  
-	test_df.replace('>','',regex=True,inplace=True)
+		test_df.replace('&#160;',' ',regex=True,inplace=True)
+		test_df.replace('&nbsp;',' ',regex=True,inplace=True)
+		test_df.replace(' ','',regex=True,inplace=True)
+		test_df.replace('\\.','',regex=True,inplace=True)
+		test_df.replace("\t"," ",regex=True,inplace=True)
+		test_df.replace("\v","",regex=True,inplace=True)
+		test_df.replace('\\s+'," ",regex= True,inplace = True)  
+		test_df['item'].replace(' ','',regex=True,inplace=True)
+		test_df.replace('>','',regex=True,inplace=True)
 
-	pos_dat = test_df.sort_values('start', ascending=True).drop_duplicates(subset=['item'], keep='last')
+		pos_dat = test_df.sort_values('start', ascending=True).drop_duplicates(subset=['item'], keep='last')
+	
+		pos_dat.set_index('item', inplace=True)
+		print(pos_dat)
+		item_1a_raw = document['10-K'][pos_dat['start'].iloc[0]:pos_dat['start'].iloc[1]]
+		#print(item_1a_raw)
+		item_1a_content = BeautifulSoup(item_1a_raw, 'lxml')
+		item_1a_content =  item_1a_content.get_text('\n').strip()
+		cleaned_risk_factor = item_1a_content.split('\n')
+		num = re.compile(r'[0-9]')
+		filter_obj = filter(lambda x: x.strip() != "" , cleaned_risk_factor)#cleaned_risk_factor = [cleaned_risk_factor if cleaned_risk_factor not ""]
+		filter_2 = filter(lambda x:not num.match(x),list(filter_obj))
+		filter_2 = [x.strip() for x in filter_2]
 
-	pos_dat.set_index('item', inplace=True)
-	item_1a_raw = document['10-K'][pos_dat['start'].iloc[0]:pos_dat['start'].iloc[1]]
-	item_1a_content = BeautifulSoup(item_1a_raw, 'lxml')
-	item_1a_content =  item_1a_content.get_text('\n').strip()
-	cleaned_risk_factor = item_1a_content.split('\n')
-	num = re.compile(r'[0-9]')
-	filter_obj = filter(lambda x: x.strip() != "" , cleaned_risk_factor)#cleaned_risk_factor = [cleaned_risk_factor if cleaned_risk_factor not ""]
-	filter_2 = filter(lambda x:not num.match(x),list(filter_obj))
-	filter_2 = [x.strip() for x in filter_2]
-
-	with open(file,'a') as f:
-		f.write("\n".join(list(filter_2)))
-		f.close()
+		with open(file,'a') as f:
+			f.write("\n".join(list(filter_2)))
+			f.close()
+	except Exception as e:
+		print(e)
 	
 
 file = pd.read_excel('downloadlist_htm.xlsx')
-num_files = 1
-for row in file['pretext_iname'].head(num_files):
-			download_link = row.replace('-index.htm','.txt')
-			file_name = download_link.split('/')[-1]
+start = 0
+num_files = 10
+if not os.path.isdir("rawFiles"):
+	os.system("mkdir rawFiles")
+if not os.path.isdir("cleanFiles"):
+	os.system("mkdir cleanFiles")
+for row in file['pretext_iname'][start:start+num_files]:
+	#row = "https://www.sec.gov/Archives/edgar/data/886475/0001019056-14-000881-index.htm"
+	download_link = row.replace('-index.htm','.txt')
+	file_name = download_link.split('/')[-1]
 
-			if not os.path.exists(download_link.split('/')[-1]):
-				os.system('wget '+download_link)
-				print('Downloading file '+file_name)
-			else:
-				print('File '+file_name+" already downloaded")
-			
-			r = requests.get(download_link)
-			raw_10k = r.text
-			
-			clean_file_name = file_name.split('.')[0]+"_cleaned.txt"
-			if os.path.exists(clean_file_name):
-				print("Skipping file: "+file_name+", cleaned file "+clean_file_name+" already exists!")
-			else:
-				print('Creating file '+clean_file_name)
-				parse(file_name,clean_file_name)
-				get_risk_factors(raw_10k,clean_file_name)
-			# from requests_html import HTML
-			# html=HTML(html=raw_10k)
-			# print(html.text)
+	if not os.path.exists("rawFiles/"+download_link.split('/')[-1]):
+		os.system('wget '+download_link +' -P rawFiles')
+		print('Downloading file '+file_name+" to folder rawFiles")
+	else:
+		print('File '+file_name+" already downloaded")
+
+	r = requests.get(download_link)
+	raw_10k = r.text
+	#print(raw_10k)
+	clean_file_name = "cleanFiles/"+file_name.split('.')[0]+"_cleaned.txt"
+	if os.path.exists(clean_file_name):
+		print("Skipping file: "+file_name+", cleaned file "+clean_file_name+" already exists!")
+	else:
+		file_name = "rawFiles/"+file_name
+		parse(file_name,clean_file_name)
+		get_risk_factors(raw_10k,clean_file_name)
+		print('Created file '+clean_file_name+" in folder cleanFiles")
+# from requests_html import HTML
+# html=HTML(html=raw_10k)
+# print(html.text)
